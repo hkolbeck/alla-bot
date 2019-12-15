@@ -6,3 +6,5 @@ edition = "2018"
 
 [dependencies]
 serenity = "0.7"
+regex = "1"
+percent-encoding = "2.1.0"
