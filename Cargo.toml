@@ -2,6 +2,7 @@
 name = "eq-item-bot"
 version = "0.1.0"
 authors = ["Cory Kolbeck <ckolbeck@gmail.com>"]
-edition = "2019"
+edition = "2018"
 
 [dependencies]
+serenity = "0.7"
