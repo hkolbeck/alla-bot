@@ -28,17 +28,30 @@ impl Handler {
 
         let document = Document::from_read(response).unwrap();
 
-        let links: HashSet<&str> = document
+        let links: HashSet<(&str, String)> = document
             .find(Name("a"))
-            .filter_map(|n| n.attr("href"))
-            .filter(|l| l.starts_with("/db/item.html?item="))
+            .filter_map(|n| n.attr("href").map(|link| (link, n.text())))
+            .filter(|(link, _)| link.starts_with("/db/item.html?item="))
+            .filter(|(_, name)| name.len() > 0)
             .collect();
 
-        self.format_response(links)
+        self.format_response(item_name, links)
     }
 
-    fn format_response(&self, links: HashSet<&str>) -> String {
-        format!("{:?}", links)
+    fn format_response(&self, search: &str, links: HashSet<(&str, String)>) -> String {
+        if links.len() == 0 {
+            return format!("No results found for \"{}\"", search);
+        } else if links.len() <= 3 {
+            let mut result = String::new();
+            links.iter().for_each(|(link, name)| {
+                result.push_str(
+                    format!("{} - http://everquest.allakhazam.com{}\n", name, link).as_str(),
+                )
+            });
+            return result;
+        } else {
+            return format!("Too many results for \"{}\"", search);
+        }
     }
 }
 
