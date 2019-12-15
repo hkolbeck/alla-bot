@@ -1,15 +1,46 @@
+use std::collections::HashSet;
 use std::env;
+
+use regex::Regex;
 
 use serenity::{
     model::{channel::Message, gateway::Ready},
     prelude::*,
 };
 
-use regex::Regex;
+use select::{document::Document, predicate::Name};
 
 use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
 
 struct Handler;
+
+impl Handler {
+    fn do_search(&self, item_name: &str) -> String {
+        let encoded_item = percent_encode(item_name.as_bytes(), NON_ALPHANUMERIC);
+        let url = format!(
+            "http://everquest.allakhazam.com/search.html?q={}",
+            encoded_item
+        );
+
+        //TODO: lol error checking
+        let response = reqwest::get(url.as_str()).unwrap();
+        assert!(response.status().is_success());
+
+        let document = Document::from_read(response).unwrap();
+
+        let links: HashSet<&str> = document
+            .find(Name("a"))
+            .filter_map(|n| n.attr("href"))
+            .filter(|l| l.starts_with("/db/item.html?item="))
+            .collect();
+
+        self.format_response(links)
+    }
+
+    fn format_response(&self, links: HashSet<&str>) -> String {
+        format!("{:?}", links)
+    }
+}
 
 impl EventHandler for Handler {
     fn message(&self, ctx: Context, msg: Message) {
@@ -20,18 +51,14 @@ impl EventHandler for Handler {
             let msg_parts: Vec<&str> = spaces.splitn(msg.content.as_str(), 2).collect();
 
             if msg_parts.len() == 1 {
-                if let Err(why) = msg.channel_id.say(&ctx.http, "Usage") {
+                if let Err(why) = msg.channel_id.say(&ctx.http, "Usage: '!itemsearch <item>'") {
                     println!("Error sending message: {:?}", why);
                 }
 
                 return;
             }
 
-            let encoded_item = percent_encode(msg_parts[1].as_bytes(), NON_ALPHANUMERIC);
-            let response = format!(
-                "http://everquest.allakhazam.com/search.html?q={}",
-                encoded_item
-            );
+            let response = self.do_search(msg_parts[1]);
             if let Err(why) = msg.channel_id.say(&ctx.http, response) {
                 println!("Error sending message: {:?}", why);
             }
