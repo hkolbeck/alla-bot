@@ -8,6 +8,11 @@ Compiling
 
 Written against Rust v1.39.0, but should compile against 1.37.0
 
+Requires the following packages on Debian-based distributions:
+* build-essential
+* libssl-dev
+* pkg-config
+
 Running
 =======
 
