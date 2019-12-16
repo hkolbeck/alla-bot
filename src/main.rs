@@ -8,7 +8,6 @@ use serenity::{
 };
 
 use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
-use reqwest::Response;
 use select::{document::Document, predicate::Name};
 
 struct Handler;
@@ -21,11 +20,23 @@ impl Handler {
             encoded_item
         );
 
-        //TODO: lol error checking
-        let response = reqwest::get(url.as_str()).unwrap();
-        assert!(response.status().is_success());
+        let response = match reqwest::get(url.as_str()) {
+            Ok(x) => x,
+            Err(e) => return format!("Error issuing request: {}", e),
+        };
 
-        let links = Handler::get_link_name_pairs(response);
+        if !response.status().is_success() {
+            if !response.status().is_success() {
+                return format!("Request failed: {}", response.status().as_str(),);
+            }
+        }
+
+        let document = match Document::from_read(response) {
+            Ok(x) => x,
+            Err(e) => return format!("Error reading response, try again later: {}", e),
+        };
+
+        let links = Handler::get_link_name_pairs(document);
         if links.len() == 0 {
             return format!("No results found for \"{}\"", item_name);
         } else if links.len() > 3 {
@@ -57,11 +68,19 @@ impl Handler {
     }
 
     fn get_detail(link: &String) -> String {
-        //TODO: lol error checking
-        let response = reqwest::get(link).unwrap();
-        assert!(response.status().is_success());
+        let response = match reqwest::get(link) {
+            Ok(x) => x,
+            Err(e) => return format!("Error issuing detail request: {}", e),
+        };
 
-        let document = Document::from_read(response).unwrap();
+        if !response.status().is_success() {
+            return format!("Detail request failed: {}", response.status().as_str(),);
+        }
+
+        let document = match Document::from_read(response) {
+            Ok(x) => x,
+            Err(e) => return format!("Error reading detail response, try again later: {}", e),
+        };
 
         let raw_detail: Vec<String> = document
             .find(Name("div"))
@@ -76,9 +95,7 @@ impl Handler {
         }
     }
 
-    fn get_link_name_pairs(response: Response) -> Vec<(String, String)> {
-        let document = Document::from_read(response).unwrap();
-
+    fn get_link_name_pairs(document: Document) -> Vec<(String, String)> {
         return document
             .find(Name("a"))
             .filter_map(|n| {
