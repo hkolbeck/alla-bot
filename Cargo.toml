@@ -1,5 +1,5 @@
 [package]
-name = "eq-item-bot"
+name = "alla-bot"
 version = "0.1.0"
 authors = ["Cory Kolbeck <ckolbeck@gmail.com>"]
 edition = "2018"
