@@ -8,7 +8,10 @@ use reqwest::get;
 pub struct Alla;
 
 impl Alla {
-    pub fn accept_raw(msg_parts: Vec<&str>) -> String {}
+    pub fn accept_raw(msg_parts: Vec<&str>) -> String {
+        let item_name = msg_parts.iter().collect();
+        Alla::do_search(item_name)
+    }
 
     fn do_search(item_name: &str) -> String {
         let encoded_item = percent_encode(item_name.as_bytes(), NON_ALPHANUMERIC);
