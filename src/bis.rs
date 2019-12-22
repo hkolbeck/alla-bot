@@ -1,30 +1,30 @@
-use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
+use percent_encoding::{percent_encode, CONTROLS};
 
 use select::document::Document;
-use select::predicate::Name;
+use select::predicate::{Attr, Name, Predicate};
 
-use reqwest::get;
+use select::node::{Children, Node};
+use std::borrow::BorrowMut;
 
-static CUR_EXPANSION: Int = 3;
+static CUR_EXPANSION: &str = "The Shadows of Luclin";
+static EQ_ITEMS_BASE: &str = "http://eqitems.com/?";
 
 struct BisQueryMapper;
 
 impl BisQueryMapper {
-    fn get_query(
-        race: &str,
-        class: &str,
-        slot: &str,
-        expansion: Option<&str>,
-    ) -> Result<String, String> {
+    fn get_query(race: &str, class: &str, expansion: Option<&str>) -> Result<String, String> {
         let race_code = BisQueryMapper::map_race(race)?;
         let class_code = BisQueryMapper::map_class(class)?;
         let expac_code = BisQueryMapper::map_expac(expansion)?;
 
+        let class_query = format!("frmSearch[classId]={}", class_code);
+        let race_query = format!("&frmSearch[raceId]={}", race_code);
+        let expac_query = format!("&frmSearch[expansionId]={}", expac_code);
+
         let query_parts = vec![
-            "http://eqitems.com/?",
-            format!("frmSearch[classId]={}", class_code).as_str(),
-            format!("&frmSearch[raceId]={}", race_code).as_str(),
-            format!("&frmSearch[expansionId]={}", expac_code).as_str(),
+            class_query.as_str(),
+            race_query.as_str(),
+            expac_query.as_str(),
             "&frmSearch[level]=60",
             "&frmSearch[deityId]=0",
             "&frmSearch[gearLevel]=99",
@@ -33,15 +33,16 @@ impl BisQueryMapper {
             "&DoSearch=Search Best in Slot",
         ];
 
-        let query = query_parts.iter().collect();
+        let query: String = query_parts.join("");
+        let encoded_query = percent_encode(query.as_bytes(), CONTROLS).to_string();
 
-        Ok(percent_encode(query, NON_ALPHANUMERIC).to_string())
+        Ok(format!("{}{}", EQ_ITEMS_BASE, encoded_query))
     }
 
     fn map_race(race: &str) -> Result<i32, String> {
-        let search_race = race.to_ascii_lowercase().as_str();
+        let search_race = race.to_ascii_lowercase();
 
-        match search_race {
+        match search_race.as_str() {
             "barbarian" => Ok(1),
             "bar" => Ok(1),
             "dark-elf" => Ok(2),
@@ -84,9 +85,9 @@ impl BisQueryMapper {
     }
 
     fn map_class(class: &str) -> Result<i32, String> {
-        let search_class = class.to_ascii_lowercase().as_str();
+        let search_class = class.to_ascii_lowercase();
 
-        match search_class {
+        match search_class.as_str() {
             "bard" => Ok(1),
             "brd" => Ok(1),
             "beastlord" => Ok(2),
@@ -126,39 +127,81 @@ impl BisQueryMapper {
 
     fn map_expac(expac: Option<&str>) -> Result<i32, String> {
         let search_expac = match expac {
-            Some(e) => e.to_ascii_lowercase().as_str(),
-            None => return Ok(CUR_EXPANSION),
+            Some(e) => e.to_ascii_lowercase(),
+            None => CUR_EXPANSION.to_ascii_lowercase(),
         };
 
-        match search_expac {
+        match search_expac.as_str() {
             "classic" => Ok(0),
             "classic everquest" => Ok(0),
             "the ruins of kunark" => Ok(1),
+            "kunark" => Ok(1),
             "the scars of velious" => Ok(2),
+            "velious" => Ok(2),
             "the shadows of luclin" => Ok(3),
+            "luclin" => Ok(3),
             "the planes of power" => Ok(4),
+            "pop" => Ok(4),
             "the legacy of ykesha" => Ok(5),
+            "ykesha" => Ok(5),
             "lost dungeons of norrath" => Ok(6),
+            "ldon" => Ok(6),
             "gates of discord" => Ok(7),
+            "gates" => Ok(7),
+            "god" => Ok(7),
             "omens of war" => Ok(8),
+            "omens" => Ok(8),
+            "oow" => Ok(8),
             "dragons of norrath" => Ok(9),
+            "don" => Ok(9),
             "depths of darkhollow" => Ok(10),
+            "depths" => Ok(10),
+            "dod" => Ok(10),
             "prophecy of ro" => Ok(11),
+            "prophecy" => Ok(11),
+            "por" => Ok(11),
             "the serpent's spine" => Ok(12),
+            "serp" => Ok(12),
+            "tss" => Ok(12),
             "the buried sea" => Ok(13),
+            "tbs" => Ok(13),
             "secrets of faydwer" => Ok(14),
+            "secrets" => Ok(14),
+            "sof" => Ok(14),
             "seeds of destruction" => Ok(15),
+            "sod" => Ok(15),
             "underfoot" => Ok(16),
             "house of thule" => Ok(17),
+            "hot" => Ok(17),
             "veil of alaris" => Ok(18),
+            "veil" => Ok(18),
+            "voa" => Ok(18),
             "rain of fear" => Ok(19),
+            "rain" => Ok(19),
+            "rof" => Ok(19),
             "call of the forsaken" => Ok(20),
+            "call" => Ok(20),
+            "cotf" => Ok(20),
             "the darkened sea" => Ok(21),
+            "darkened sea" => Ok(21),
+            "tds" => Ok(21),
             "the broken mirror" => Ok(22),
+            "broken mirror" => Ok(22),
+            "mirror" => Ok(22),
+            "tbm" => Ok(22),
             "empires of kunark" => Ok(23),
+            "empires" => Ok(23),
+            "eok" => Ok(23),
             "ring of scale" => Ok(24),
+            "ring" => Ok(24),
+            "ros" => Ok(24),
             "the burning lands" => Ok(25),
-            _ => Err(format!("Unknown expansion: {}", expac)),
+            "burning lands" => Ok(25),
+            "tbl" => Ok(25),
+            _ => Err(format!(
+                "Unknown expansion: {}",
+                expac.unwrap_or(CUR_EXPANSION)
+            )),
         }
     }
 }
@@ -166,12 +209,114 @@ impl BisQueryMapper {
 pub struct Bis;
 
 impl Bis {
-    pub fn accept_raw(msg_parts: Vec<&str>) -> String {}
+    pub fn accept_raw(msg_parts: Vec<&str>) -> String {
+        let result = if msg_parts.len() < 3 {
+            return format!(
+                "Usage: !bis <race> <class> <slot> [expansion] (Default expansion: {})",
+                CUR_EXPANSION
+            );
+        } else if msg_parts.len() == 3 {
+            Bis::do_search(msg_parts[0], msg_parts[1], msg_parts[2], None)
+        } else if msg_parts.len() > 3 {
+            let expac = msg_parts[2..].join(" ");
+            Bis::do_search(
+                msg_parts[0],
+                msg_parts[1],
+                msg_parts[2],
+                Some(expac.as_str()),
+            )
+        } else {
+            panic!("Math is broken")
+        };
+
+        match result {
+            Ok(items) => Bis::format_result(items),
+            Err(err) => err,
+        }
+    }
+
+    fn format_result(result: Vec<(String, String, String)>) -> String {
+        result
+            .iter()
+            .map(|(name, link, detail)| format!("{} - <{}> {}\n", name, link, detail))
+            .collect()
+    }
 
     fn do_search(
         race: &str,
         class: &str,
+        slot: &str,
         expansion: Option<&str>,
-    ) -> Vec<(String, String, Integer)> {
+    ) -> Result<Vec<(String, String, String)>, String> {
+        let query = BisQueryMapper::get_query(race, class, expansion)?;
+
+        let resp = match reqwest::get(query.as_str()) {
+            Ok(resp) => resp,
+            Err(e) => {
+                println!("{}", e);
+                return Err(String::from("Request failed, try again later"));
+            }
+        };
+
+        if !resp.status().is_success() {
+            return Err(format!(
+                "Request failed with status: {}",
+                resp.status().as_str()
+            ));
+        }
+
+        let document = match Document::from_read(resp) {
+            Ok(x) => x,
+            Err(e) => return Err(format!("Error reading response, try again later: {}", e)),
+        };
+
+        let search_slot = slot.to_ascii_uppercase();
+
+        let slot_nodes: Vec<Node> = document
+            .find(Name("h3"))
+            .filter(|n| n.text().as_str() == search_slot.as_str())
+            .collect();
+
+        if slot_nodes.len() == 0 {
+            return Err(format!("Unknown slot: {}", slot));
+        } else if slot_nodes.len() > 1 {
+            return Err(format!("Found multiple listings for slot: {}", slot));
+        }
+
+        let item_list = match slot_nodes[0].next() {
+            Some(node) => node,
+            None => return Err(format!("No item list found for slot: {}", slot)),
+        };
+
+        Ok(item_list
+            .children()
+            .take(3)
+            .filter_map(|li| li.first_child())
+            .filter_map(|div| Bis::extract_name_and_link(div.children().borrow_mut()))
+            .map(|(name, link)| {
+                let detail = Bis::fetch_detail(link.as_str());
+                (name, link, detail)
+            })
+            .collect())
+    }
+
+    fn extract_name_and_link(div_children: &mut Children) -> Option<(String, String)> {
+        let pairs: Vec<(String, String)> = div_children
+            .filter(|n| Name("a").and(Attr("target", "_blank")).matches(n))
+            .map(|n| (n.text(), n.attr("href")))
+            .filter_map(|(name, maybe_link)| match maybe_link {
+                None => None,
+                Some(link) => Some((name, String::from(link))),
+            })
+            .collect();
+
+        match pairs.get(0) {
+            None => None,
+            Some((name, link)) => Some((String::from(name), String::from(link))),
+        }
+    }
+
+    fn fetch_detail(link: &str) -> String {
+        String::from("")
     }
 }

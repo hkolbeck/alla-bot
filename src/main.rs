@@ -13,7 +13,7 @@ use serenity::{
 use alla::Alla;
 use bis::Bis;
 
-struct Handler
+struct Handler;
 
 impl EventHandler for Handler {
     fn message(&self, ctx: Context, msg: Message) {
@@ -24,10 +24,10 @@ impl EventHandler for Handler {
             "!alla" => Some(Alla::accept_raw(msg_parts[1..].to_vec())),
             "!bis" => Some(Bis::accept_raw(msg_parts[1..].to_vec())),
             _ => None,
-        }
+        };
 
-        if let Some(msg) = response {
-            if let Err(why) = msg.channel_id.say(&ctx.http, msg) {
+        if let Some(to_send) = response {
+            if let Err(why) = msg.channel_id.say(&ctx.http, to_send) {
                 println!("Error sending message: {:?}", why);
             }
         }

@@ -3,14 +3,12 @@ use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
 use select::document::Document;
 use select::predicate::Name;
 
-use reqwest::get;
-
 pub struct Alla;
 
 impl Alla {
     pub fn accept_raw(msg_parts: Vec<&str>) -> String {
-        let item_name = msg_parts.iter().collect();
-        Alla::do_search(item_name)
+        let item_name: String = msg_parts.join(" ");
+        Alla::do_search(item_name.as_str())
     }
 
     fn do_search(item_name: &str) -> String {
@@ -26,9 +24,7 @@ impl Alla {
         };
 
         if !response.status().is_success() {
-            if !response.status().is_success() {
-                return format!("Request failed: {}", response.status().as_str(),);
-            }
+            return format!("Request failed: {}", response.status().as_str(),);
         }
 
         let document = match Document::from_read(response) {
@@ -36,14 +32,14 @@ impl Alla {
             Err(e) => return format!("Error reading response, try again later: {}", e),
         };
 
-        let links = Handler::get_link_name_pairs(document);
+        let links = Alla::get_link_name_pairs(document);
         if links.len() == 0 {
             return format!("No results found for \"{}\"", item_name);
         } else if links.len() > 3 {
             return format!("Too many results for \"{}\"", item_name);
         } else {
-            let details = Handler::get_details(links);
-            return Handler::format_response(details);
+            let details = Alla::get_details(links);
+            return Alla::format_response(details);
         }
     }
 
@@ -61,7 +57,7 @@ impl Alla {
             .iter()
             .map(|(link, name)| (format!("http://everquest.allakhazam.com{}", link), name))
             .map(|(link, name)| {
-                let detail = Handler::get_detail(&link);
+                let detail = Alla::get_detail(&link);
                 (link, String::from(name), detail)
             })
             .collect();
