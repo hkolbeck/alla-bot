@@ -1,7 +1,9 @@
 mod alla;
 mod bis;
+mod util;
 
 use std::env;
+use std::str;
 
 use regex::Regex;
 

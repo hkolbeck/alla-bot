@@ -1,8 +1,8 @@
 use percent_encoding::{percent_encode, CONTROLS};
 
-use select::document::Document;
 use select::predicate::{Attr, Name, Predicate};
 
+use crate::util::AllaUtil;
 use select::node::{Children, Node};
 use std::borrow::BorrowMut;
 
@@ -250,24 +250,9 @@ impl Bis {
     ) -> Result<Vec<(String, String, String)>, String> {
         let query = BisQueryMapper::get_query(race, class, expansion)?;
 
-        let resp = match reqwest::get(query.as_str()) {
-            Ok(resp) => resp,
-            Err(e) => {
-                println!("{}", e);
-                return Err(String::from("Request failed, try again later"));
-            }
-        };
-
-        if !resp.status().is_success() {
-            return Err(format!(
-                "Request failed with status: {}",
-                resp.status().as_str()
-            ));
-        }
-
-        let document = match Document::from_read(resp) {
-            Ok(x) => x,
-            Err(e) => return Err(format!("Error reading response, try again later: {}", e)),
+        let document = match AllaUtil::fetch_url(query.as_str()) {
+            Ok(d) => d,
+            Err(e) => return Err(e),
         };
 
         let search_slot = slot.to_ascii_uppercase();
@@ -317,21 +302,9 @@ impl Bis {
     }
 
     fn fetch_detail(link: &str) -> String {
-        let resp = match reqwest::get(link) {
-            Ok(resp) => resp,
-            Err(e) => {
-                println!("{}", e);
-                return String::from("Detail request failed, try again later");
-            }
-        };
-
-        if !resp.status().is_success() {
-            return format!("Detail request failed with status: {}", resp.status());
-        }
-
-        let document = match Document::from_read(resp) {
-            Ok(x) => x,
-            Err(e) => return format!("Error reading detail response, try again later: {}", e),
+        let document = match AllaUtil::fetch_url(link) {
+            Ok(d) => d,
+            Err(e) => return e,
         };
 
         let quest_node: Vec<(String, String)> = document

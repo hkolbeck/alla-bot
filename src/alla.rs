@@ -1,5 +1,6 @@
 use percent_encoding::{percent_encode, NON_ALPHANUMERIC};
 
+use crate::util::AllaUtil;
 use select::document::Document;
 use select::predicate::Name;
 
@@ -18,18 +19,9 @@ impl Alla {
             encoded_item
         );
 
-        let response = match reqwest::get(url.as_str()) {
-            Ok(x) => x,
-            Err(e) => return format!("Error issuing request: {}", e),
-        };
-
-        if !response.status().is_success() {
-            return format!("Request failed: {}", response.status().as_str(),);
-        }
-
-        let document = match Document::from_read(response) {
-            Ok(x) => x,
-            Err(e) => return format!("Error reading response, try again later: {}", e),
+        let document = match AllaUtil::fetch_url(url.as_str()) {
+            Ok(d) => d,
+            Err(e) => return e,
         };
 
         let links = Alla::get_link_name_pairs(document);
@@ -64,18 +56,9 @@ impl Alla {
     }
 
     fn get_detail(link: &String) -> String {
-        let response = match reqwest::get(link) {
-            Ok(x) => x,
-            Err(e) => return format!("Error issuing detail request: {}", e),
-        };
-
-        if !response.status().is_success() {
-            return format!("Detail request failed: {}", response.status().as_str(),);
-        }
-
-        let document = match Document::from_read(response) {
-            Ok(x) => x,
-            Err(e) => return format!("Error reading detail response, try again later: {}", e),
+        let document = match AllaUtil::fetch_url(link) {
+            Ok(d) => d,
+            Err(e) => return e,
         };
 
         let raw_detail: Vec<String> = document
