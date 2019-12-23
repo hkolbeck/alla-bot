@@ -29,7 +29,7 @@ impl BisQueryMapper {
             "&frmSearch[deityId]=0",
             "&frmSearch[gearLevel]=99",
             "&frmSearch[NoDrop]=1",
-            "&frmSearch[IgnoreEffects]=0",
+            "&frmSearch[IgnoreEffects]=1",
             "&DoSearch=Search Best in Slot",
         ];
 
@@ -317,6 +317,73 @@ impl Bis {
     }
 
     fn fetch_detail(link: &str) -> String {
-        String::from("")
+        let resp = match reqwest::get(link) {
+            Ok(resp) => resp,
+            Err(e) => {
+                println!("{}", e);
+                return String::from("Detail request failed, try again later");
+            }
+        };
+
+        if !resp.status().is_success() {
+            return format!("Detail request failed with status: {}", resp.status());
+        }
+
+        let document = match Document::from_read(resp) {
+            Ok(x) => x,
+            Err(e) => return format!("Error reading detail response, try again later: {}", e),
+        };
+
+        let quest_node: Vec<(String, String)> = document
+            .find(Name("a"))
+            .filter(|n| n.text().contains("/db/quest.html"))
+            .filter(|n| n.attr("href").is_some())
+            .map(|n| (n.text(), String::from(n.attr("href").unwrap())))
+            .collect();
+
+        match quest_node.get(0) {
+            Some((_quest, link)) => return format!("quested: <{}>", link),
+            None => {}
+        };
+
+        let drop_nodes: Option<Node> = document.find(Name("div").and(Attr("id", "drops"))).next();
+
+        let drop_mob_div_children = match drop_nodes {
+            None => return String::from("Couldn't determine source"),
+            Some(n) => n.children(),
+        };
+
+        let mobs: Vec<String> = drop_mob_div_children
+            .filter(|n| Name("ul").matches(n))
+            .map(|n| n.children())
+            .map(|c| c.filter(|n| Name("li").matches(n)))
+            .flat_map(|f| f.map(|c| c.children()))
+            .filter_map(|mut c| c.find(|n| Name("a").matches(n)))
+            .map(|n| n.text())
+            .filter(|t| !t.contains("The Fabled"))
+            .collect();
+
+        println!("Droppers: {}", mobs.join(", "));
+
+        let found_mob = match mobs.len() {
+            0 => String::from("unknown mob"),
+            1 => String::from(mobs.get(0).unwrap()),
+            _ => String::from("multiple mobs"),
+        };
+
+        let drop_zone_div_children = drop_nodes.unwrap().children();
+
+        let zones: Vec<String> = drop_zone_div_children
+            .filter(|n| Name("b").matches(n))
+            .map(|n| n.text())
+            .collect();
+
+        let found_zone = match zones.len() {
+            0 => String::from("unknown zone"),
+            1 => String::from(zones.get(0).unwrap()),
+            _ => String::from("multiple zones"),
+        };
+
+        return format!("drops from {} in {}", found_mob, found_zone);
     }
 }
